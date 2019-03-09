@@ -74,9 +74,9 @@ __*create database & migrations & query data*__
 *	from django.contrib.auth.models import User
 *	author = models.ForeignKey(User, on_delete=models.CASCADE)   # if user is deleted, post also
 *	we need to run migrations to update the database with any change
-*	 - py manage.py makemigrations
-*	 - py manage.py sqlmigrate blog 0001
-*	 - py manage.py migrate
+	 - py manage.py makemigrations
+	 - py manage.py sqlmigrate blog 0001
+	 - py manage.py migrate
 *	Django python shell allow us to work with the models interactively line by line:
 	 - py manage.py shell
 ```
@@ -193,3 +193,48 @@ __*query the data and pass it to view.py*__
 	 - from .models import Post
 	 - admin.site.register(Post)
 *	now we can update, delete, change author of any post
+
+
+__*user registration*__
+*	py manage.py startapp users
+*	in settings.py, add "'users.apps.UsersConfig'," to INSTALLED_APPS list
+*	in users/views.py
+```
+def register(request):
+    form = UserCreationForm()
+    return render(request, 'users/register.html', {'form': form})
+```
+*	create users/templates/users/register.html, which extends blog/base.html
+*	in the form, we need to add "{% csrf_token %}", which is [Cross Site Request Forgery protection](https://docs.djangoproject.com/en/2.1/ref/csrf/)
+*	in the project's url.py, create an url pattern that uses the register/views.py, so we can navigate to this page in the browser
+	 - from users import views as user_views
+	 - path('register/', user_views.register, name='register'),
+*	if we get a POST request, it instantiates the UserCreationForm with that POST data, else eg. it's a GET request, we just desplay a blank form.
+*	if the form is valid, create the user, save the data, grab the username, and redirect the user to the home page.
+*	from django.contrib import messages, which has debug, info, success, warning and error tags.
+```
+def register(request):
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            form.save()
+            username = form.cleaned_data.get('username')
+            messages.success(request, f'Account created for {username}!')
+            return redirect('blog-home')
+    else:
+        form = UserCreationForm()
+    return render(request, 'users/register.html', {'form': form})
+```
+*	put flush messages in base template so any massages pop up on any page.
+```
+        <div class="col-md-8">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                {% endfor%}
+            {% endif %}
+            {% block content %}{% endblock %}
+        </div>
+```
