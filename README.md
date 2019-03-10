@@ -238,3 +238,30 @@ def register(request):
             {% block content %}{% endblock %}
         </div>
 ```
+
+__*add email field to the form and use django-crispy-forms*__
+*	users/forms.py
+```
+from django import forms
+from django.contrib.auth.models import User
+from django.contrib.auth.forms import UserCreationForm
+
+
+class UserRegisterForm(UserCreationForm):   # inheritsUserCreationForm
+    email = forms.EmailField()              # default: required=True
+
+    class Meta:                             # keep the configuration in one place
+        model = User                        # the model that'll be affected is User model
+        fields = ['username', 'email', 'password1', 'password2']  # fields will be shown in the model in this order
+```
+*	crispy forms allow us to put some simple tags in the template that'll style the form in a bootstrap fashion
+*	pip install django-crispy-forms
+*	in project/settings.py INSTALLED_APPS, add 'crispy_forms', CRISPY_TEMPLATE_PACK = 'bootstrap4'
+*	in register.html
+```
+{% load crispy_forms_tags %}
+{% block content %}
+...
+	{{ form|crispy }}
+```
+
