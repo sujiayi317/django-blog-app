@@ -265,3 +265,33 @@ class UserRegisterForm(UserCreationForm):   # inheritsUserCreationForm
 	{{ form|crispy }}
 ```
 
+__*login/logout systems & users are forced to login before they can see the /profile page*__
+*	in project/urls.py from django.contrib.auth import views as auth_views
+*	create path: path('login/', auth_views.LoginViews.as_view(template_name='users/login.html'), name='login'),
+*	LOGIN_REDIRECT_URL = 'blog-home'
+*	modify register route to redirect users to login page:
+	 - in users/views.py  f'Your account has been created! You are now able to log in'
+	 - return redirect('login')
+*	django provides a user variable that contains the current user and has an attribute called .is_authenticated to check if the user is currently logged in
+
+__*create user's profile page that users can access after logged in*__
+*	create the view: in users/views.py
+```
+def profile(request):
+    return render(request, 'users/profile.html')
+```
+*	create the template: users/templates/users/profile.html
+*	create the routes in url_patterns that will use this view: in urls.py urlpatterns list, add path('profile/', user_views.profile, name='profile'),
+*	add profile button in navigation bar in base.html, display a link to the profile page when logged in
+*	put a check to see if the user is logged in before accessing the profile page:
+	 - in views.py, from django.contrib.auth.decorators import login_required
+```
+@login_required
+def profile(request):
+    return render(request, 'users/profile.html')
+```
+*	.../accounts/login/?next=/profile/ is the default location that django looks for login routes, but we have simply put our login page at /login, so we need to tell django where it can find the login route:
+	 - in settings.py LOGIN_URL = 'login'
+*	?next=/profile/ it's keeping track of the page that we were trying to access and it will direct us to that page after we log in
+	 - note: the default redirect url is to the 'home-page'
+	 - so if we log in here, we will be redirected to /profile page now
