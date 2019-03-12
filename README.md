@@ -199,7 +199,7 @@ __*user registration*__
 *	py manage.py startapp users
 *	in settings.py, add "'users.apps.UsersConfig'," to INSTALLED_APPS list
 *	in users/views.py
-```
+```python
 def register(request):
     form = UserCreationForm()
     return render(request, 'users/register.html', {'form': form})
@@ -212,7 +212,7 @@ def register(request):
 *	if we get a POST request, it instantiates the UserCreationForm with that POST data, else eg. it's a GET request, we just desplay a blank form.
 *	if the form is valid, create the user, save the data, grab the username, and redirect the user to the home page.
 *	from django.contrib import messages, which has debug, info, success, warning and error tags.
-```
+```python
 def register(request):
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
@@ -226,7 +226,7 @@ def register(request):
     return render(request, 'users/register.html', {'form': form})
 ```
 *	put flush messages in base template so any massages pop up on any page.
-```
+```html
         <div class="col-md-8">
             {% if messages %}
                 {% for message in messages %}
@@ -241,7 +241,7 @@ def register(request):
 
 __*add email field to the form and use django-crispy-forms*__
 *	users/forms.py
-```
+```python
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
@@ -274,6 +274,7 @@ __*login/logout systems & users are forced to login before they can see the /pro
 	 - return redirect('login')
 *	django provides a user variable that contains the current user and has an attribute called .is_authenticated to check if the user is currently logged in
 
+
 __*create user's profile page that users can access after logged in*__
 *	create the view: in users/views.py
 ```
@@ -295,3 +296,121 @@ def profile(request):
 *	?next=/profile/ it's keeping track of the page that we were trying to access and it will direct us to that page after we log in
 	 - note: the default redirect url is to the 'home-page'
 	 - so if we log in here, we will be redirected to /profile page now
+
+
+__*user's profile and picture*__
+*	extend the existing User model that django provides
+*	in users/models.py
+```python
+from django.db import models
+from django.contrib.auth.models import User
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    image = models.ImageField(default='default.jpg', upload_to='profile_pics')
+
+    def __str__(self):
+        return f'{self.user.username} Profile'
+```
+*	Anytime after changing the models, be sure to makemigrations to update the database
+*	pip install Pillow
+*	py manages.py makemigrations
+*	py manages.py migrate
+*	in order to be able to view the profile on /admin page, we need to register this model within admin.py
+*	in users/admin.py:
+```python
+from django.contrib import admin
+from .models import Profile
+
+admin.site.register(Profile)
+```
+*	add profile manually through admin page
+```
+(PROJEC~1) C:\Users\Jiayi Su\Desktop\Djangoenv\django_project>py manage.py shell
+Python 3.7.2 (tags/v3.7.2:9a3ffc0492, Dec 23 2018, 23:09:28) [MSC v.1916 64 bit (AMD64)] on win32
+Type "help", "copyright", "credits" or "license" for more information.
+(InteractiveConsole)
+>>> from django.contrib.auth.models import User
+>>> user = User.objects.filter(username='jiayisu').first()
+>>> user
+<User: jiayisu>
+>>> user.profile
+<Profile: jiayisu Profile>
+>>> user.profile.image
+<ImageFieldFile: profile_pics/girl.jpg>
+>>> user.profile.image.width
+564
+>>> user.profile.image.url
+'profile_pics/girl.jpg'
+>>> user = User.objects.filter(username='TestUser').first()
+>>> user
+<User: TestUser>
+>>> user.profile.image
+Traceback (most recent call last):
+  File "<console>", line 1, in <module>
+  File "C:\Users\JIAYIS~1\Desktop\DJANGO~1\PROJEC~1\lib\site-packages\django\db\models\fields\related
+_descriptors.py", line 414, in __get__
+    self.related.get_accessor_name()
+django.contrib.auth.models.User.profile.RelatedObjectDoesNotExist: User has no profile.
+>>>
+```
+
+*	change the dir where the profile pictures will be saved
+	 - in settings.py:  MEDIA_ROOT = os.path.join(BASE_DIR, 'media')   MEDIA_URL = '/media/'
+*	profile.html
+```html
+{% extends "blog/base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+    <div class="content-section">
+      <div class="media">
+        <img class="rounded-circle account-img" src="{{ user.profile.image.url }}">
+        <div class="media-body">
+          <h2 class="account-heading">{{ user.username }}</h2>
+          <p class="text-secondary">{{ user.email }}</p>
+        </div>
+      </div>
+      <!-- FORM HERE -->
+    </div>
+{% endblock content %}
+```
+*	[Serving files uploaded by a user during development](https://docs.djangoproject.com/en/2.1/howto/static-files/#serving-files-uploaded-by-a-user-during-development)
+*	During development, you can serve user-uploaded media files from MEDIA_ROOT using the django.views.static.serve() view.This is not suitable for production use! 
+*	in project/urls.py
+```
+from django.conf import settings
+from django.conf.urls.static import static
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+```
+*	auto-set default pic for newly-created users
+	 - in users/signals.py
+```python
+from django.db.models.signals import post_save        # signal
+from django.contrib.auth.models import User           # sender
+from django.dispatch import receiver
+from .models import Profile
+
+
+@receiver(post_save, sender=User)
+def create_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_profile(sender, instance, **kwargs):
+    instance.profile.save()
+```
+
+*	import the signal inside of the ready function of users/apps.py
+```python
+from django.apps import AppConfig
+
+
+class UsersConfig(AppConfig):
+    name = 'users'
+
+    def ready(self):
+        import users.signals
+```
