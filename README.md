@@ -277,7 +277,7 @@ __*login/logout systems & users are forced to login before they can see the /pro
 
 __*create user's profile page that users can access after logged in*__
 *	create the view: in users/views.py
-```
+```python
 def profile(request):
     return render(request, 'users/profile.html')
 ```
@@ -286,7 +286,7 @@ def profile(request):
 *	add profile button in navigation bar in base.html, display a link to the profile page when logged in
 *	put a check to see if the user is logged in before accessing the profile page:
 	 - in views.py, from django.contrib.auth.decorators import login_required
-```
+```python
 @login_required
 def profile(request):
     return render(request, 'users/profile.html')
@@ -377,7 +377,7 @@ django.contrib.auth.models.User.profile.RelatedObjectDoesNotExist: User has no p
 *	[Serving files uploaded by a user during development](https://docs.djangoproject.com/en/2.1/howto/static-files/#serving-files-uploaded-by-a-user-during-development)
 *	During development, you can serve user-uploaded media files from MEDIA_ROOT using the django.views.static.serve() view.This is not suitable for production use! 
 *	in project/urls.py
-```
+```python
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -414,3 +414,99 @@ class UsersConfig(AppConfig):
     def ready(self):
         import users.signals
 ```
+
+__*update user's profile (information and picture) and auto-resize uploaded picture*__
+*	users/forms.py create a model form, which allows us to create a form that'll work with a specific database model.
+*	here, we want our form to update the user model
+
+```python
+class UserUpdateForm(forms.ModelForm):
+    email = forms.EmailField()
+
+    class Meta:
+        model = User
+        fields = ['username', 'email']
+
+
+class ProfileUpdateForm(forms.ModelForm):
+    class Meta:
+        model = Profile
+        fields = ['image']
+```
+*	add these forms to profile view
+```python
+@login_required
+def profile(request):
+    u_form = UserUpdateForm()
+    p_form = ProfileUpdateForm()
+    
+    context = {
+        'u_form': u_form,
+        'p_form': p_form,
+    }
+
+    return render(request, 'users/profile.html', context)
+```
+
+*	put two fields for these forms into a single form, so the user see it as one
+*	in users/profile.html
+```html
+<!-- FORM HERE IS USERUPDATE & PROFILEUPDATE Form-->
+      <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <fieldset class="form-group">
+            <legend class="border-bottom mb-4">Profile Info</legend>
+            {{ u_form|crispy }}
+            {{ p_form|crispy }}
+        </fieldset>
+        <div class="form-group">
+            <button class="btn btn-outline-info" type="submit">Update</button>
+        </div>
+      </form>
+```
+
+*	populate the fields with current user info: in views.py
+```python
+@login_required
+def profile(request):
+    if request.method == 'POST':
+        u_form = UserUpdateForm(request.POST, instance=request.user)
+        p_form = ProfileUpdateForm(request.POST, request.FILES,
+                                   instance=request.user.profile)
+        if u_form.is_valid() and p_form.is_valid():
+            u_form.save()
+            p_form.save()
+            messages.success(request,
+                             f'Your account has been updated!')
+            return redirect('profile')
+    else:
+        u_form = UserUpdateForm(instance=request.user)
+        p_form = ProfileUpdateForm(instance=request.user.profile)
+
+    context = {
+        'u_form': u_form,
+        'p_form': p_form,
+    }
+
+    return render(request, 'users/profile.html', context)
+```
+
+*	auto-resize image when uploading picture: in models.py, override the save method
+```python
+    def save(self):
+        super().save()
+
+        img = Image.open(self.image.path)
+
+        if img.height > 300 or img.width > 300:
+            output_size = (300, 300)
+            img.thumbnail(output_size)
+            img.save(self.image.path)
+```
+
+*	display the image of the author beside each post: blog/home.html
+```html
+   <img class="rounded-circle article-img" src="{{ post.author.profile.image.url }}">
+```
+
+
