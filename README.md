@@ -546,3 +546,27 @@ class PostListView(ListView):
     ordering = ['-date_posted']
 ```
 
+__*a detail view: a view for individual post*__
+*	views.py
+```python
+class PostDetailView(DetailView):
+    model = Post
+```
+
+*	urls.py: pk is the primary key of the post we want to view, pk will be passed to the class-based view
+```python
+    path('post/<int:pk>/', PostDetailView.as_view(), name='post-detail'),
+```
+
+*	create a template that'll desplay our post details
+	 - in views, by default, our generic class-based view will be looking for a template with the naming convention: <app>/<model>_<viewtype>.html
+	 - so we need to create a template: blog/templates/blog/post_detail.html 
+	 - within this html, change "post" to "object"
+*	now we can add links to the routes for the individual post on the home page:
+	 - home.html
+```html
+<h2><a class="article-title" href="{% url 'post-detail' post.id %}">{{ post.title }}</a></h2>
+```
+
+
+
