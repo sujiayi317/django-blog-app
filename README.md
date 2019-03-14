@@ -509,4 +509,40 @@ def profile(request):
    <img class="rounded-circle article-img" src="{{ post.author.profile.image.url }}">
 ```
 
+__*function view VS class-based view*__
+*	ListView, DetailView, CreateView, UpdateView, DeleteView
+*	in blog/views.py, create a ListView for model Post. We can change the template django was looking for with template_name
+*	in blog/urls.py:
+```python
+from .views import PostListView
+
+urlpatterns = [
+    # path('', views.home, name='blog-home'),
+    path('', PostListView.as_view(), name='blog-home'),
+    path('about/', views.about, name='blog-about'),
+]
+```
+
+*	by default, ListView will call the variable object_list instead of posts, so we can either go into the template and change it so it's looping over object_list
+*	or we can set one more variable in our ListView and let the class know that we want that variable to be called "posts" instead
+*	to see the latest post at the top, we need to change the order our query is making to the database:
+	 - in our ListView, add an ordering attribute with the field we want to order on, the minus sign will reverse the order
+```python
+from django.views.generic import ListView
+
+# ------------function view
+def home(request):
+    context = {
+        'posts': Post.objects.all()
+    }
+    # return HttpResponse('<h1>Blog Home</h1>')
+    return render(request, 'blog/home.html', context)
+
+# ------------class-based view
+class PostListView(ListView):
+    model = Post
+    template_name = 'blog/home.html'    # <app>/<model>_<viewtype>.html
+    context_object_name = 'posts'
+    ordering = ['-date_posted']
+```
 
