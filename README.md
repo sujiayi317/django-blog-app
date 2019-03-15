@@ -568,5 +568,110 @@ class PostDetailView(DetailView):
 <h2><a class="article-title" href="{% url 'post-detail' post.id %}">{{ post.title }}</a></h2>
 ```
 
+__*CreateView UpdateView DeleteView*__
+*	for CreateView, it'll share a template with the UpdateView, named <model>_form.html
+*	we want the author to be the current logged-in user, so we can override the form_valid method for our CreateView
+	 - this will allow us to add the author before the form is submitted
+```python
+class PostCreateView(CreateView):
+    model = Post
+    fields = ['title', 'content']
 
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        return super().form_valid(form)
+```
+*	in Post model, we need to create the get_absolute_url method so that django knows how to find the location to a specific post
+	 - the reverse function will simply return the full url to a route as a string
+	 - whereas the redirect function will redirect you to a specific route
+*	in blog/models.py reverse() need two args: the full path of the route we want to get, and a specific post with a primary key
+```python
+from django.urls import reverse
+
+class Post(models.Model):
+    # ...
+    def get_absolute_url(self):
+        return reverse('post-detail', kwargs={'pk':self.pk})
+```
+*	if you just want to go to the home page, you can set an attribute in CreateView called success_url and set that to the home page
+*	We shouldn't be able to create a post unless we're logged in, if not, we'll be directed to the login page
+	 - for function-based views (user profile page we created) login_required decorator was used
+	 - for class-based views, we use login mixin, which is a class we inherit from that'll add that login functionality to the view
+
+```python
+from django.contrib.auth.mixins import LoginRequiredMixin
+
+class PostCreateView(LoginRequiredMixin, CreateView):
+    model = Post
+    fields = ['title', 'content']
+
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        return super().form_valid(form)
+```
+
+*	UpdateView in urls.py, we provide the primary key in the url to the post that we wanna update
+*	the template for UpdateView just uses the same post_form template that we created for the CreateView
+
+```python
+    path('post/<int:pk>/update/', PostUpdateView.as_view(), name='post-update'),
+
+```
+
+*	we only want the people who wrote the post to be able to edit it, so add another mixin
+```python
+class PostUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Post
+    fields = ['title', 'content']
+
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        return super().form_valid(form)
+
+    def test_func(self):
+        post = self.get_object()
+        if self.request.user == post.author:
+            return True
+        return False
+```
+
+*	DeleteView, we want users to be logged in and is the author of the post in order to see the DeleteView
+*	template is a form that just ask us if we're sure to wanna delete a post, if we submit the form, the post will be deleted
+	 - blog/post_confirm_delete.html
+
+```html
+{% extends "blog/base.html" %}
+{% block content %}
+    <div class="content-section">
+        <form method="POST">
+            {% csrf_token %}
+            <fieldset class="form-group">
+                <legend class="border-bottom mb-4">Delete Post</legend>
+                <h2>Are you sure you want to delete the post "{{ object.title }}"</h2>
+            </fieldset>
+            <div class="form-group">
+                <button class="btn btn-outline-danger" type="submit">Yes, Delete</button>
+                <a class="btn btn-outline-secondary" href="{% url 'post-detail' object.id %}">Cancel</a>
+            </div>
+        </form>
+    </div>
+{% endblock content %}
+```
+
+*	add links to these routes
+	 - put a link to navigation bar to create a new post
+	  - blog/base.html
+```html
+<a class="nav-item nav-link" href="{% url 'post-create' %}">New Post</a>
+```
+*	links to update and delete the post
+	 - blog/post_detail.html
+```html
+        {% if object.author == user %}
+          <div>
+            <a class="btn btn-secondary btn-sm mt-1 mb-1" href="{% url 'post-update' object.id %}">Update</a>
+            <a class="btn btn-danger btn-sm mt-1 mb-1" href="{% url 'post-delete' object.id %}">Delete</a>
+          </div>
+        {% endif %}
+```
 
