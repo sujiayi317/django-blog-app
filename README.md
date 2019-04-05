@@ -771,5 +771,79 @@ class UserPostListView(ListView):
 
 
 __*use email to let users reset password*__
-*	
+*	email info
 
+sujiayi317@gmail.com
+to me
+
+
+You're receiving this email because you requested a password reset for your user account at 127.0.0.1:8000.
+
+Please go to the following page and choose a new password:
+
+http://127.0.0.1:8000/password-reset-confirm/MQ/558-5f8a6d2c1592b17b0f87/
+
+Your username, in case you've forgotten: jiayisu
+
+Thanks for using our site!
+
+The 127.0.0.1:8000 team
+
+*	django_project/urls.py
+```python
+    path('password-reset/', auth_views.PasswordResetView.as_view(template_name='users/password_reset.html'),
+         name='password_reset'),
+    path('password-reset/done/', auth_views.PasswordResetDoneView.as_view(template_name='users/password_reset_done.html'),
+         name='password_reset_done'),
+    path('password-reset-confirm/<uidb64>/<token>/',
+         auth_views.PasswordResetConfirmView.as_view(template_name='users/password_reset_confirm.html'),
+         name='password_reset_confirm'),
+    path('password-reset-complete/', auth_views.PasswordResetCompleteView.as_view(template_name='users/password_reset_complete.html'),
+         name='password_reset_complete'),
+```
+
+*	django_project/settings.py
+```python
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ.get('EMAIL_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_PASS')
+```
+
+*	password_reset_comfirm.html
+```html
+{% extends "blog/base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+    <div class="content-section">
+        <form method="POST">
+            {% csrf_token %}
+            <fieldset class="form-group">
+                <legend class="border-bottom mb-4">Reset Password</legend>
+                {{ form|crispy }}
+            </fieldset>
+            <div class="form-group">
+                <button class="btn btn-outline-info" type="submit">Reset Password</button>
+            </div>
+        </form>
+    </div>
+{% endblock content %}
+```
+
+*	create a link for users to reset password on login page
+```html
+            <div class="form-group">
+                <button class="btn btn-outline-info" type="submit">Log In</button>
+                <small class="text-muted ml-2">
+                    <a href="{% url 'password_reset' %}">Forgot Password?</a>
+                </small>
+            </div>
+```
+
+*	room for improvements:
+	 - unitest
+	 - deploy on different platforms
+	 - send longer running request up to a message queue and make it a synchronous
+	 - add a commenting system, a search feature
