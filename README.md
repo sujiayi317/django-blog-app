@@ -675,3 +675,101 @@ class PostUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         {% endif %}
 ```
 
+
+__*Pagination*__
+*	use json file data to create posts and work with paginator object
+
+```python
+(PROJEC~1) C:\Users\Jiayi Su\Desktop\Djangoenv\django_project>py manage.py shell
+Python 3.7.2 (tags/v3.7.2:9a3ffc0492, Dec 23 2018, 23:09:28) [MSC v.1916 64 bit (AMD64)] on win32
+Type "help", "copyright", "credits" or "license" for more information.
+(InteractiveConsole)
+>>> import json
+>>> from blog.models import Post
+
+>>> with open('posts.json') as f:
+...     post_json = json.load(f)
+...
+>>> for post in post_json:
+...     post = Post(title=post['title'], content=post['content'], author_id=post['user_id'])
+...     post.save()
+...
+
+>>> from django.core.paginator import Paginator
+>>> posts = ['1', '2', '3', '4', '5']
+>>> p = Paginator(posts, 2)
+>>> p.num_pages
+3
+>>> for page in p.page_range:
+...     print(page)
+...
+1
+2
+3
+>>> p1 = p.page(1)         # to look at a specific page (page 1)
+>>>
+>>> p1
+<Page 1 of 3>
+>>> p1.number             # the number of that page
+1
+>>> p1.object_list
+['1', '2']
+>>> p1.has_previous()
+False
+>>> p1.has_next()
+True
+>>> p1.next_page_number()
+2
+>>>
+```
+
+*	pagination of home page
+```html
+
+    {% if is_paginated %}
+      {% if page_obj.has_previous %}
+        <a class="btn btn-outline-info mb-4" href="?page=1">First</a>
+        <a class="btn btn-outline-info mb-4" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+      {% endif %}
+
+      {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+          <a class="btn btn-info mb-4" href="?page={{ num }}">{{ num }}</a>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+          <a class="btn btn-outline-info mb-4" href="?page={{ num }}">{{ num }}</a>
+        {% endif %}
+      {% endfor %}
+
+      {% if page_obj.has_next %}
+        <a class="btn btn-outline-info mb-4" href="?page={{ page_obj.next_page_number }}">Next</a>
+        <a class="btn btn-outline-info mb-4" href="?page={{ page_obj.paginator.num_pages }}">Last</a>
+      {% endif %}
+
+    {% endif %}
+```
+
+*	posts of a specific author
+```python
+class PostListView(ListView):
+    model = Post
+    template_name = 'blog/home.html'    # <app>/<model>_<viewtype>.html
+    context_object_name = 'posts'
+    ordering = ['-date_posted']
+    paginate_by = 5
+
+
+class UserPostListView(ListView):
+    model = Post
+    template_name = 'blog/user_posts.html'    # <app>/<model>_<viewtype>.html
+    context_object_name = 'posts'
+    paginate_by = 5
+
+    def get_queryset(self):
+        user = get_object_or_404(User, username=self.kwargs.get('username'))
+        return Post.objects.filter(author=user).order_by('-date_posted')
+```
+
+
+__*use email to let users reset password*__
+*	
+
